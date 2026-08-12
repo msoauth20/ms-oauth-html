@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Microsoft OAuth2</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container { max-width: 640px; width: 100%; }
+    .card {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 40px;
+      color: #e0e0e0;
+    }
+    .card.success { border-color: rgba(76,175,80,0.3); }
+    .card.error { border-color: rgba(244,67,54,0.3); }
+    h2 { font-size: 1.5em; margin-bottom: 16px; color: #fff; }
+    .field { margin-bottom: 16px; }
+    .field:last-child { margin-bottom: 0; }
+    .field label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.9em;
+      color: #aaa;
+      margin-bottom: 8px;
+    }
+    .field input[type="text"],
+    .field input[type="password"] {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      color: #64b5f6;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.95em;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .field input:focus { border-color: rgba(102,126,234,0.6); }
+    .field input::placeholder { color: #555; }
+    .btn {
+      display: inline-block;
+      padding: 12px 28px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+      margin-top: 8px;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+    .btn.secondary {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .copy-btn {
+      padding: 4px 10px;
+      font-size: 0.8em;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #ccc;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-left: 8px;
+    }
+    .token-section { margin: 20px 0; }
+    .token-block { margin-bottom: 16px; }
+    .token-block label {
+      display: flex;
+      align-items: center;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #aaa;
+      font-size: 0.9em;
+    }
+    textarea {
+      width: 100%;
+      height: 80px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: #64b5f6;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82em;
+      padding: 10px;
+      resize: none;
+      word-break: break-all;
+    }
+    .meta {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      font-size: 0.9em;
+      color: #999;
+      margin: 8px 0;
+    }
+    .meta code { color: #64b5f6; }
+    .meta strong { color: #e0e0e0; }
+    .warn {
+      background: rgba(255,152,0,0.1);
+      border: 1px solid rgba(255,152,0,0.3);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 0.9em;
+      color: #ffb74d;
+      margin: 20px 0;
+    }
+    .error-msg {
+      background: rgba(244,67,54,0.1);
+      padding: 12px;
+      border-radius: 8px;
+      color: #ef9a9a;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 首页 -->
+    <div class="card" id="page-home">
+      <h2>🔐 Microsoft OAuth2 授权</h2>
+      
+      <!-- 配置区域 -->
+      <div style="margin-top: 20px; padding: 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;">
+        <details>
+          <summary style="cursor: pointer; color: #888; font-size: 0.9em;">⚙️ 高级配置（自定义应用）</summary>
+          <div style="margin-top: 12px;">
+            <div class="field">
+              <label>Client ID（留空使用公共应用）</label>
+              <input type="text" id="input-client-id" placeholder="9e5f94bc-e8a4-4e73-b8be-63364c29d753" />
+            </div>
+            <div class="field" style="margin-top: 10px;">
+              <label>Client Secret（公开客户端留空）</label>
+              <input type="password" id="input-client-secret" placeholder="机密客户端填写，公开客户端留空" />
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <button class="btn" onclick="handleAuthorize()" style="margin-top: 16px;">🚀 获取授权code</button>
+      
+      <!-- 手动输入 code -->
+      <div style="margin-top: 24px; padding: 20px; background: rgba(102,126,234,0.1); border: 1px solid rgba(102,126,234,0.3); border-radius: 12px;">
+        <h3 style="font-size: 1.1em; margin-bottom: 12px; color: #64b5f6;">📋 获取 Token</h3>
+        <ol style="font-size: 0.9em; color: #aaa; margin-bottom: 16px; padding-left: 20px; line-height: 1.8;">
+          <li>先在上方 ⚙️ 高级配置 填写你的 Client ID 和 Secret（机密客户端）</li>
+          <li>点击上方按钮，完成 Microsoft 授权</li>
+          <li>浏览器会跳转到 <code style="color: #64b5f6;">http://localhost?code=xxx</code></li>
+          <li>复制 URL 中的 <strong>code</strong> 参数值</li>
+          <li>回到此页面，粘贴到下方输入框</li>
+        </ol>
+        <div class="field">
+          <label style="color: #fff; font-size: 1em;">Authorization Code</label>
+          <input type="text" id="input-code" placeholder="粘贴从 localhost URL 中复制的 code" style="font-size: 1em; padding: 14px;" />
+        </div>
+        <button onclick="exchangeCode()" class="btn" style="margin-top: 12px; width: 100%;">🔄 交换获取 Token</button>
+        <div id="result" style="margin-top: 12px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function escapeHTML(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function handleAuthorize() {
+      const clientId = document.getElementById('input-client-id').value.trim() || '9e5f94bc-e8a4-4e73-b8be-63364c29d753';
+      const scopes = encodeURIComponent('offline_access https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.Send');
+      const redirectUri = encodeURIComponent('http://localhost');
+      
+      const authUrl = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize' +
+        '?client_id=' + encodeURIComponent(clientId) +
+        '&response_type=code' +
+        '&redirect_uri=' + redirectUri +
+        '&response_mode=query' +
+        '&scope=' + scopes +
+        '&prompt=consent';
+      
+      window.open(authUrl, '_blank');
+      document.getElementById('input-code').focus();
+    }
+
+    // 页面加载时检查 URL 中是否有 code
+    window.addEventListener('DOMContentLoaded', function() {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+      if (code) {
+        document.getElementById('input-code').value = code;
+        exchangeCode();
+      }
+    });
+
+    async function exchangeCode() {
+      const code = decodeURIComponent(document.getElementById('input-code').value.trim() || '');
+      const el = document.getElementById('result');
+      
+      if (!code) {
+        el.textContent = '❌ 请输入 Authorization Code';
+        el.style.color = '#ef9a9a';
+        return;
+      }
+
+      const clientId = document.getElementById('input-client-id').value.trim() || '9e5f94bc-e8a4-4e73-b8be-63364c29d753';
+      const clientSecret = document.getElementById('input-client-secret').value.trim();
+      
+      el.textContent = '⏳ 正在交换 Token...';
+      el.style.color = '#64b5f6';
+
+      // 构建请求体
+      const body = new URLSearchParams({
+        client_id: clientId,
+        scope: 'offline_access https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.Send',
+        code: code,
+        redirect_uri: 'http://localhost',
+        grant_type: 'authorization_code',
+      });
+
+      // 仅机密客户端添加 client_secret
+      if (clientSecret) {
+        body.set('client_secret', clientSecret);
+      }
+
+      try {
+        const resp = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body.toString(),
+        });
+
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          el.innerHTML = '<div class="error-msg">❌ ' + escapeHTML(data.error_description || data.error || '未知错误') + '</div>';
+          return;
+        }
+
+        // 显示 token
+        el.innerHTML = `
+          <div style="margin-top: 16px; padding: 16px; background: rgba(76,175,80,0.1); border: 1px solid rgba(76,175,80,0.3); border-radius: 8px;">
+            <h4 style="color: #81c784; margin-bottom: 12px;">✅ Token 获取成功！</h4>
+            <div style="margin-bottom: 12px;">
+              <label style="display: block; font-weight: 600; margin-bottom: 4px; color: #aaa; font-size: 0.9em;">Access Token:</label>
+              <textarea readonly style="width: 100%; height: 60px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #64b5f6; font-family: monospace; font-size: 0.8em; padding: 8px; resize: none;">${escapeHTML(data.access_token)}</textarea>
+            </div>
+            <div style="margin-bottom: 12px;">
+              <label style="display: block; font-weight: 600; margin-bottom: 4px; color: #aaa; font-size: 0.9em;">Refresh Token:</label>
+              <textarea readonly style="width: 100%; height: 60px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #64b5f6; font-family: monospace; font-size: 0.8em; padding: 8px; resize: none;">${escapeHTML(data.refresh_token)}</textarea>
+            </div>
+            <div class="meta">
+              <span>⏱️ 有效期: <strong>${data.expires_in}s</strong> (${Math.round(data.expires_in / 60)} 分钟)</span>
+              <span>🔑 类型: <strong>${escapeHTML(data.token_type)}</strong></span>
+            </div>
+            <div class="meta">
+              <span>📎 权限范围: <code>${escapeHTML(data.scope)}</code></span>
+            </div>
+            <div class="warn">⚠️ 请立即保存 Refresh Token！关闭页面后无法再次查看。</div>
+          </div>
+        `;
+      } catch (e) {
+        // 如果 CORS 失败，提示用 Worker 代理
+        if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+          el.innerHTML = `
+            <div class="error-msg">
+              ❌ 请求失败：CORS 跨域限制<br><br>
+              Microsoft 的 token 端点不允许从浏览器直接调用。<br>
+              你需要使用 Cloudflare Worker 作为代理。<br><br>
+              <a href="https://github.com/msoauth20/msoauth20" style="color: #64b5f6;">→ 使用 Worker 版本</a>
+            </div>
+          `;
+        } else {
+          el.innerHTML = '<div class="error-msg">❌ 请求失败: ' + escapeHTML(e.message) + '</div>';
+        }
+      }
+    }
+  </script>
+</body>
+</html>
